@@ -1,3 +1,7 @@
+import re
+import ast
+import json
+from cpgqls_client import CPGQLSClient, import_code_query
 
 # Joern server endpoint and credentials
 server_endpoint = "localhost:8080"
