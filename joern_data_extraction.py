@@ -18,7 +18,7 @@ def strip_ansi_codes(text):
 def import_codebase():
     """Import the codebase into Joern."""
     try:
-        query = import_code_query(codebase_path, "$)f)&#@h689087")
+        query = import_code_query(codebase_path, "$)f)&#@h6]]89087pp")
         result = client.execute(query)
         print("Codebase imported successfully.")
         return result
@@ -46,7 +46,7 @@ def getChildHierarchy(funcName: String): Map[String, List[String]] = {
   // Iterate over the stack
   while (stack.nonEmpty) {
     val currentFunc = stack.pop()
-    val callees = cpg.method.name(currentFunc).call("[^<].*").name.l.distinctn
+    val callees = cpg.method.name(currentFunc).call("[^<].*").name.l.distinct
 
     // Update the hierarchy map
     hierarchy(currentFunc) = callees.toList
@@ -113,7 +113,7 @@ def initialization():
     
     
 def variable_search(fun , var_name):
-    initialization()
+    #initialization()
     var_hierarchy = get_child_hierarchy.replace('bpf_struct_ops_map_update_elem',fun)
     result = run_query(var_hierarchy)
     local_var_query = var_query.replace('varr' , var_name)
@@ -127,7 +127,6 @@ def variable_search(fun , var_name):
 # print(output_functions)
 # print(type(output_functions))
 # #initialization()
-
 
 
 
