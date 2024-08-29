@@ -2,13 +2,32 @@ import re
 import ast
 import json
 from cpgqls_client import CPGQLSClient, import_code_query
-from data_cleaning import correct_brackets
+import data_cleaning as dtc
+import subprocess
+import pickle
 
+# def start_joern_server():
+    # try:
+        # # Specify the path to the directory containing the Joern executable
+        # joern_directory = r"E:\joern\joern-cli"
+
+        # # Command to run Joern server
+        # command = "joern.bat --server"
+
+        # # Start the Joern server from the specified directory
+        # process = subprocess.Popen(command, shell=True, cwd=joern_directory)
+
+        # print("Joern server started successfully as a background process.")
+
+    # except Exception as e:
+        # print(f"An error occurred: {e}")
+        
 # Joern server endpoint and credentials
 server_endpoint = "localhost:8080"
 basic_auth_credentials = ("username", "password")
 client = CPGQLSClient(server_endpoint, auth_credentials = basic_auth_credentials)
 codebase_path = r"H:\\linux-master\\kernel"  # Path to your codebase
+#codebase_path = ""
 
 # Function to strip ANSI color codes from the output
 def strip_ansi_codes(text):
@@ -17,8 +36,10 @@ def strip_ansi_codes(text):
 
 def import_codebase():
     """Import the codebase into Joern."""
+    # global codebase_path
+    # codebase_path = input("Enter the Codebase PATH")
     try:
-        query = import_code_query(codebase_path, "$)f)&#@h6]]89087pp")
+        query = import_code_query(codebase_path, "wedew)&hi9[+]%^89087pp")
         result = client.execute(query)
         print("Codebase imported successfully.")
         return result
@@ -102,16 +123,22 @@ cpg.identifier.name("varr").method.name.l.distinct
 val functionsWithMyVar = All_Functions_in_Hierarchy.filter(fn =>cpg.method.name(fn).ast.isIdentifier.name("varr").nonEmpty)
 '''
 def initialization():
-    import_codebase()
-    result = run_query(get_child_hierarchy)
-    result = run_query(get_skip_patterns)
-    result = run_query(get_hierarchy_dict)
-    result = correct_brackets(result)
-    result = result.split('val hierarchyDict: Map[String, Any] = ')[1]
-    result = json.loads(result)
-    return result
-    
-    
+    #start_joern_server()
+    with open(r"H:\github\static_code_analysis_tool\path.pkl", 'rb') as f:
+        path_in_file = pickle.load(f)
+    if codebase_path == path_in_file:
+        return dtc.get_data()
+    else :
+        import_codebase()
+        result = run_query(get_child_hierarchy)
+        result = run_query(get_skip_patterns)
+        result = run_query(get_hierarchy_dict)
+        result = dtc.correct_brackets(result)
+        result = result.split('val hierarchyDict: Map[String, Any] = ')[1]
+        result = json.loads(result)
+        dtc.storing_data(codebase_path,result)
+        return result
+
 def variable_search(fun , var_name):
     #initialization()
     var_hierarchy = get_child_hierarchy.replace('bpf_struct_ops_map_update_elem',fun)
@@ -126,7 +153,7 @@ def variable_search(fun , var_name):
 # output_functions = variable_search('bpf_struct_ops_map_update_elem' , 'PERF_RECORD_KSYMBOL_TYPE_UNKNOWN')  
 # print(output_functions)
 # print(type(output_functions))
-# #initialization()
-
+# a= initialization()
+# print(a)
 
 
