@@ -1,0 +1,198 @@
+	  						 [Using JOERN for Code Analyzer Application]
+							   						   
+                 [Getting The Child Functions of a specific Fuction]
+cpg.method.name("processChoice").call("[^<].*").name.l.distinct
+
+                 [Getting All the Functions]
+cpg.method("[^<].*").name.l.distinct
+
+                 [For getting the parent funcions of a given function] 
+joern> cpg.method.name("processChoice").caller.name.l.distinct
+                                
+			     [For getting the location of a method/function]
+cpg.method.name("bpf_struct_ops_map_update_elem").file.name.l.distinct
+
+                 [For getting all the parent functions]
+cpg.method.filter(m => m.callIn.size == 0).name("[^<].*").name.l.distinct
+val res14: List[String] = List("main")
+           
+		               [STEPS TO GET HIGHEST TREE SIZE FUNCTION]
+		   
+val functions = cpg.method.toList or cpg.method.filter(m => m.callIn.size == 0).name("[^<].*").name.l.distinct
+
+// Step 2: For each function, count the number of child function calls (calls made within the function)
+
+val functionWithChildrenCount = functions.map { func =>
+  val childrenCount = func.ast.isCall.size
+  (func, childrenCount)
+}
+                             OR
+							 
+val functionWithChildrenCount = functions.map { funcName =>
+  val method = cpg.method.name(funcName).head
+  val childrenCount = method.ast.isCall.size
+  (method, childrenCount)
+}
+
+// Step 3: Find the function with the maximum number of children
+val functionWithMostChildren = functionWithChildrenCount.maxBy(_._2)
+
+println(s"Function with the most children: ${functionWithMostChildren._1.fullName}, Number of children: ${functionWithMostChildren._2}")
+
+                            [Steps to Get the Complete Hierarchy]:
+											
+def getChildHierarchy(funcName: String): Map[String, List[String]] = {
+  // Initialize with the starting function
+  val stack = scala.collection.mutable.Stack(funcName)
+  val hierarchy = scala.collection.mutable.Map[String, List[String]]().withDefaultValue(List())
+
+  // Iterate over the stack
+  while (stack.nonEmpty) {
+    val currentFunc = stack.pop()
+    val callees = cpg.method.name(currentFunc).call.callee.name.toSet
+    //val callees = val callees = cpg.file.nameExact("tools\\rosmake\\src\\rosmake\\engine.py").method.name(currentFunc).call("[^<].*").name.l.distinct
+    // Update the hierarchy map
+    hierarchy(currentFunc) = callees.toList
+
+    // Push new callees onto the stack for further processing
+    callees.foreach { callee =>
+      if (!hierarchy.contains(callee)) {
+        stack.push(callee)
+      }
+    }
+  }
+
+  hierarchy.toMap
+}
+
+// Example usage
+val hierarchy = getChildHierarchy("bpf_struct_ops_map_update_elem")
+
+def getSkipPatterns: Set[String] = Set(
+  "<operator>.", // Skipping operators
+  "<operator>.fieldAccess", "<operator>.slice", "<operator>.tupleLiteral", // Special operators
+  "int<meta>", "str<meta>", "list<meta>", "range<meta>", // Meta-functions
+  "__init__", "__iter__", "__next__", "__builtin.open.<returnValue>.", "threading.py:<module>.Lock.<returnValue>.", // Special attributes/methods
+  "append", "split", "sort", "keys", "values", "items", "enumerate", "filter" // Data operations
+)
+val skipPatterns = getSkipPatterns
+
+                           [Printing the Hierarchy with the indent Format]
+						   
+def printHierarchy(hierarchy: Map[String, List[String]], func: String, indent: String = "", skipPatterns: Set[String], maxDepth: Int = 10, currentDepth: Int = 0, processing: Set[String] = Set()): Unit = {
+  if (currentDepth < maxDepth) {
+    if (processing.contains(func)) {
+      // If the function is in the processing set, it's recursive
+      println(s"${indent}Function: $func (recursive)")
+    } else if (!skipPatterns.exists(func.contains)) {
+      // Print the function name and mark it as being processed
+      println(s"${indent}Function: $func")
+      val newProcessing = processing + func
+      hierarchy.get(func).foreach { callees =>
+        callees.foreach { callee =>
+          if (!skipPatterns.exists(callee.contains)) {
+            printHierarchy(hierarchy, callee, indent + "  ", skipPatterns, maxDepth, currentDepth + 1, newProcessing)
+          }
+        }
+      }
+    }
+  } else {
+    // Print a clear indication if maximum depth is reached
+    println(s"${indent}Function: $func (max depth reached)")
+  }
+}
+
+printHierarchy(hierarchy, "bpf_struct_ops_map_update_elem", skipPatterns = skipPatterns)
+
+                [Printing the Hierarchy with Scala Dictionary Format]
+			  
+def buildHierarchyDict(hierarchy: Map[String, List[String]], func: String, skipPatterns: Set[String], visited: Set[String] = Set(), maxDepth: Int = 1, currentDepth: Int = 0): Map[String, Any] = {
+  
+  if (currentDepth > maxDepth) 
+    return Map(func -> "max depth reached")
+  
+  if (visited.contains(func)) 
+    return Map(func -> "recursive")
+  
+  if (!skipPatterns.exists(func.contains)) {
+    hierarchy.get(func) match {
+      case Some(callees) =>
+        val newVisited = visited + func
+        Map(func -> callees.filterNot(callee => skipPatterns.exists(callee.contains))
+                           .map(callee => buildHierarchyDict(hierarchy, callee, skipPatterns, newVisited, maxDepth, currentDepth + 1)))
+      case None => Map(func -> List.empty)
+    }
+  } else {
+    Map.empty
+  }
+}
+val hierarchyDict = buildHierarchyDict(hierarchy, "bpf_struct_ops_map_update_elem", skipPatterns)
+
+           [query to find the child functions of a particular function in a particular file] 
+                      (Same Function names may exists in Different Files)
+
+cpg.file.nameExact("tools\\rosmake\\src\\rosmake\\engine.py").method.name("main").call("[^<].*").name.l.distinct
+
+                              [Getting all the global variables]
+					   (this was not successful: some changes needed)
+
+import io.shiftleft.codepropertygraph.Cpg
+import io.shiftleft.codepropertygraph.generated.nodes.Member
+
+def findGlobalVariables(cpg: Cpg): Set[Member] = {
+  cpg.member.toSet.filter { member =>
+    // You may need to add more specific filtering logic here
+    member.name.nonEmpty // Basic filter to ensure the member has a name
+  }
+}
+
+// Run the query on the code property graph (cpg)
+val globalVariables = findGlobalVariables(cpg)
+val globalVariables = findGlobalVariables(cpg).name.l
+
+                            [Getting top 15 functions with most childrenCount]
+								 
+// Step 1: Get all functions in the codebase
+val functions = cpg.method.filter(m => m.callIn.size == 0).name("[^<].*").toList.distinct
+
+// Step 2: For each function, count the number of child function calls (calls made within the function)
+val functionWithChildrenCount = functions.map { func =>
+  val childrenCount = func.ast.isCall.name("[^<].*").name.l.distinct.size
+  (func, childrenCount)
+}
+
+// Step 3: Sort the functions by the number of child calls in descending order
+val sortedFunctions = functionWithChildrenCount.sortBy(-_._2)
+
+// Step 4: Take the top 15 functions
+val top15Functions = sortedFunctions.take(15)
+
+// Step 5: Print the top 15 functions with the most children
+top15Functions.foreach { case (func, count) =>println(s"Function: ${func.fullName}, Number of children: $count")}}
+
+                              [Some other important queries]
+
+// to get the name of all functions in the hierarchy of a parent which contans a specific variable 
+
+val functionNames = cpg.method.name("bpf_struct_ops_map_update_elem").ast.isIdentifier.name("rule").where(_.inCall).method.name.l.distinct
+
+//to get a list of all the functions in the hierarchy
+val All_Functions_in_Hierarchy = (hierarchy.keys ++ hierarchy.values.flatten.l.distinct).l.distinct
+
+//to get all variables in the complete list of functions:
+val variables = All_Functions_in_Hierarchy.flatMap(fn => cpg.method.name(fn).ast.isIdentifier.name.l).distinct
+
+// to get all the functions in which a specific variable is used	
+cpg.identifier.name("btf_vmlinux").method.name.l.distinct
+                                  .file //for location
+// to get those functions in hierarchy in which a certain variable exists"
+val functionsWithMyVar = All_Functions_in_Hierarchy.filter(fn =>cpg.method.name(fn).ast.isIdentifier.name("my_var").nonEmpty)
+  
+// to get the names of all the variables in specific method:
+cpg.method.name("btf_type_skip_modifiers").ast.isIdentifier.name.l.distinct
+
+
+
+
+
+
