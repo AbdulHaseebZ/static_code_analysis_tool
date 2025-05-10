@@ -60,7 +60,6 @@ Ensured scalability and performance while visualizing complex graphs
 🧪 Getting Started
 Coming soon: A step-by-step guide on setting up Joern, running the Python scripts, and launching the Dash app.
 
-(Add setup instructions once ready)
 
 🤝 Acknowledgment
 Developed as part of my internship at the National Center of Robotics and Automation (NCRA), NUST, under mentorship and guidance from their software analysis team.
