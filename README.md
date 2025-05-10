@@ -22,7 +22,7 @@ Programmatically query Joern using Python
 
 Extract function relationships, call graphs, and dependency trees
 
-Represent them in custom data structures
+Represent them in python data structures (nested dictionaries)
 
 Visualize them using Dash Cytoscape for interactive exploration
 
